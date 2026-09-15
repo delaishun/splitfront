@@ -348,7 +348,7 @@ const checkContractActive = async (): Promise<boolean> => {
   }
 };
 
-export function useTonConnect() {
+export function useTonConnect(): Record<string, any> {
   const initTonConnect = (buttonRootId?: string, twaReturnUrl?: string) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const manifestUrl =
