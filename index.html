@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <!-- 1. 修复 user-scalable 拼写，并补充 viewport-fit=cover 适配刘海屏 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Telegram Mini App</title>
+
+  <!-- 💡 优先加载 Telegram 原生 WebApp 脚本 -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- 💡 全方位捕获并持久化备份 Telegram initData -->
+  <script>
+    (function () {
+      try {
+        var rawData = '';
+        var href = window.location.href;
+
+        // 1. 优先尝试从 URL 中解析 tgWebAppData 参数 (最快且不依赖 SDK 初始化延迟)
+        if (href.indexOf('tgWebAppData=') !== -1) {
+          var match = href.match(/tgWebAppData=([^&#]+)/);
+          if (match && match[1]) {
+            rawData = decodeURIComponent(match[1]);
+          }
+        } 
+
+        // 2. 强力兜底：从 URL 中匹配完整的 query_id / user / auth_date / hash 参数串
+        if (!rawData && href.indexOf('hash=') !== -1) {
+          var hashIdx = href.indexOf('hash=');
+          var startIdx = href.indexOf('query_id=');
+          if (startIdx === -1 || startIdx > hashIdx) startIdx = href.indexOf('user=');
+          if (startIdx === -1 || startIdx > hashIdx) startIdx = href.indexOf('auth_date=');
+          if (startIdx === -1 || startIdx > hashIdx) startIdx = hashIdx;
+
+          var extracted = href.substring(startIdx);
+          // 去除 hash 后可能携带的 Vue Router path (#/...)
+          if (extracted.indexOf('#/') !== -1) {
+            extracted = extracted.substring(0, extracted.indexOf('#/'));
+          }
+          if (extracted && extracted.indexOf('hash=') !== -1) {
+            rawData = extracted;
+          }
+        }
+
+        // 3. 若 URL 无参数，尝试从 Telegram 原生 Bridge 全局变量抓取 (iOS / Android / Desktop)
+        if (!rawData && window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+          rawData = window.Telegram.WebApp.initData;
+        }
+
+        // 4. 成功提取后，立刻存入 sessionStorage，供 Vue 全局 API / Axios 使用
+        if (rawData && rawData.trim()) {
+          sessionStorage.setItem('__TG_RAW_INIT_DATA__', rawData.trim());
+        }
+
+        // 5. 提前初始化背景色，防止暗黑模式下初始化白屏闪烁
+        if (window.Telegram && window.Telegram.WebApp) {
+          window.Telegram.WebApp.ready();
+          if (window.Telegram.WebApp.colorScheme === 'dark') {
+            document.documentElement.style.backgroundColor = '#17212b';
+          }
+        }
+      } catch (e) {
+        console.error('Save initData backup failed:', e);
+      }
+    })();
+  </script>
+
+  <style>
+    /* 防止 Mini App 加载 Vue 主程序前的页面弹跳与滚动条抖动 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
