@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useTelegram } from '../composables/useTelegram';
 import { useTonConnect } from '../composables/useTonConnect';
 import { api, getTelegramInitData, getBindStatus } from '../services/api';
@@ -70,7 +70,7 @@ import { blurAddress, toUserFriendlyAddress, toRawAddress } from '../helperts/ad
 
 const { triggerHaptic, triggerNotificationHaptic } = useTelegram();
 
-// ✅ 与 IndexPage.vue 对齐：解构出 connectWallet，替换掉旧的 initTonConnect + 影子 DOM 模拟点击方案
+// ✅ 与 IndexPage.vue 对齐：解构出 connectWallet
 const {
   isConnected,
   isBinding,
@@ -232,7 +232,27 @@ onMounted(async () => {
   // 加载绑定状态
   await fetchBindStatus();
 
-  // 如果已绑定，并且钱包已连接但地址不一致，可考虑提示，但暂不处理
+  // ============================================================
+  // ✅ 处理返回按钮：点击时关闭 Mini App（与 IndexPage.vue 一致）
+  // ============================================================
+  if (tgWebApp) {
+    tgWebApp.BackButton.show();
+    tgWebApp.BackButton.onClick(() => {
+      if (typeof triggerHaptic === 'function') triggerHaptic('light');
+      tgWebApp.close();
+    });
+  }
+});
+
+/**
+ * 清理 Telegram BackButton 事件（组件卸载时）
+ */
+onUnmounted(() => {
+  const tgWebApp = (window as any).Telegram?.WebApp;
+  if (tgWebApp) {
+    tgWebApp.BackButton.offClick();
+    tgWebApp.BackButton.hide();
+  }
 });
 </script>
 
