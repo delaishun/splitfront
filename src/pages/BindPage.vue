@@ -69,7 +69,16 @@ import { api, getTelegramInitData, getBindStatus } from '../services/api';
 import { blurAddress, toUserFriendlyAddress, toRawAddress } from '../helperts/address';
 
 const { triggerHaptic, triggerNotificationHaptic } = useTelegram();
-const { isConnected, isBinding, isBound, walletAddress, initTonConnect, syncWalletAddressToBackend } = useTonConnect();
+
+// ✅ 与 IndexPage.vue 对齐：解构出 connectWallet，替换掉旧的 initTonConnect + 影子 DOM 模拟点击方案
+const {
+  isConnected,
+  isBinding,
+  isBound,
+  walletAddress,
+  connectWallet,
+  syncWalletAddressToBackend,
+} = useTonConnect();
 
 const binding = ref(false);
 const isSuccess = ref(false);
@@ -120,23 +129,15 @@ const fetchBindStatus = async () => {
   }
 };
 
+/**
+ * ✅ 与 IndexPage.vue 对齐的钱包连接触发器
+ * 直接调用 connectWallet()（内部使用 TonConnectUI.openModal），
+ * 避免依赖影子 DOM 选择器，显著提高在 iOS / Android / Desktop 上的成功率。
+ */
 const triggerWalletConnect = () => {
   console.log('[BindPage Debug] 👆 用户点击【连接 TON 钱包】按钮');
   if (typeof triggerHaptic === 'function') triggerHaptic('light');
-  initTonConnect();
-
-  const shadowRoot = document.getElementById('ton-connect-button-root')?.shadowRoot ||
-                     document.querySelector('#tc-widget-root')?.shadowRoot ||
-                     document.querySelector('tc-root')?.shadowRoot;
-  const realBtn = shadowRoot?.querySelector('button');
-  if (realBtn) {
-    console.log('[BindPage Debug] 🎯 找到内部 TonConnect 影子 DOM 按钮，模拟触发点击');
-    (realBtn as HTMLElement).click();
-  } else {
-    console.warn('[BindPage Debug] ⚠️ 未找到 TonConnect 影子 DOM 按钮，尝试主页面全量查找 fallback');
-    const fallbackBtn = document.querySelector('button[class*="ton-connect"]') as HTMLElement;
-    if (fallbackBtn) fallbackBtn.click();
-  }
+  connectWallet();
 };
 
 /**
